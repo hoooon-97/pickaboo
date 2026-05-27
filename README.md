@@ -2,7 +2,7 @@
 
 A lightweight, Mac-native AI assistant that lives just outside your active window.
 
-> **Status:** Stage 4 — the menu bar now lists upcoming Reminders (next 7 days) pulled live from macOS via EventKit. Character behaviour (wander / escape / dive / click-to-approach) from Stage 3 is unchanged. Weather, real pixel-art sprite, and AI features still pending.
+> **Status:** Stage 5 — the menu bar popover now shows the current time and local weather (Open-Meteo, no API key) alongside the Reminders list. Real pixel-art sprite and AI features still pending.
 
 ## Requirements
 
@@ -59,7 +59,7 @@ Key decisions:
 | 2 ✅ | Accessibility + `WindowMonitorService` + 4-cardinal avoidance + full-screen → menu bar retreat |
 | 3 ✅ | Autonomous BehaviorController (idle / wander / escape / approach / dive); SpriteAnimator + SF Symbol placeholder character; click → face + approach cursor; full-screen dive to menu bar |
 | 4 ✅ | macOS Reminders integration: `RemindersService` (EventKit) + menu bar list of upcoming items |
-| 5 | Weather via Open-Meteo + current time in menu bar (no API key, no paid Apple Developer account needed) |
+| 5 ✅ | Weather (Open-Meteo) + current time in menu bar; CoreLocation for coordinates, 30 min auto-refresh |
 | 6 | Real pixel-art sprite sheet (4-direction, multi-frame) replacing the placeholder |
 | 7 | AI assistant features |
 

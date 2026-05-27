@@ -4,6 +4,8 @@ import Combine
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let presence = PresenceController()
     let remindersService = RemindersService()
+    let locationService = LocationService()
+    lazy var weatherService = WeatherService(locationService: locationService)
 
     private let mouseTracker = MouseTrackerService()
     private let windowMonitor = WindowMonitorService()
@@ -47,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mouseTracker.start()
         windowMonitor.start()
         remindersService.start()
+        weatherService.start()
         startTickLoop()
         scheduleAccessibilityRecheck()
     }
@@ -56,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mouseTracker.stop()
         windowMonitor.stop()
         remindersService.stop()
+        weatherService.stop()
     }
 
     private func startTickLoop() {

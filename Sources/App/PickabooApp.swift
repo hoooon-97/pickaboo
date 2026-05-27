@@ -9,6 +9,8 @@ struct PickabooApp: App {
             MenuBarContent()
                 .environmentObject(appDelegate.presence)
                 .environmentObject(appDelegate.remindersService)
+                .environmentObject(appDelegate.locationService)
+                .environmentObject(appDelegate.weatherService)
         }
         .menuBarExtraStyle(.window)
     }

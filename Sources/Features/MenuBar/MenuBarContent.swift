@@ -3,6 +3,8 @@ import SwiftUI
 struct MenuBarContent: View {
     @EnvironmentObject var presence: PresenceController
     @EnvironmentObject var reminders: RemindersService
+    @EnvironmentObject var weather: WeatherService
+    @EnvironmentObject var location: LocationService
 
     private let recheckTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
 
@@ -16,6 +18,10 @@ struct MenuBarContent: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Divider()
+
+            StatusSection(weather: weather, location: location)
 
             Divider()
 
@@ -41,10 +47,11 @@ struct MenuBarContent: View {
             .keyboardShortcut("q")
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(width: 340)
         .onAppear {
             presence.refreshAccessibility()
             reminders.refresh()
+            weather.refresh()
         }
         .onReceive(recheckTimer) { _ in presence.refreshAccessibility() }
     }

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pickaboo — a Mac-native AI assistant. A floating avatar (`NSPanel`) tracks the cursor, retreats to the menu bar when the active app goes full-screen, and surfaces Reminders / weather / AI features.
 
-Currently at **Stage 4**: the menu bar surfaces upcoming Reminders via EventKit. The Stage 3 autonomous character (wander / escape / dive / approach) is unchanged. Weather is next, then real pixel-art sprite. See `README.md` for the full roadmap.
+Currently at **Stage 5**: the menu bar popover surfaces time, weather (Open-Meteo via CoreLocation), and Reminders. The Stage 3 autonomous character is unchanged. Real pixel-art sprite is next, then AI. See `README.md` for the full roadmap.
 
 ## Build
 
