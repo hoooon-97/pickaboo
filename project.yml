@@ -28,6 +28,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSHumanReadableCopyright: ""
         NSRemindersUsageDescription: "Pickaboo reads your Reminders to surface upcoming tasks."
+        NSRemindersFullAccessUsageDescription: "Pickaboo reads your Reminders to surface upcoming tasks in the menu bar."
         NSCalendarsUsageDescription: "Pickaboo reads your Reminders to surface upcoming tasks."
         NSLocationWhenInUseUsageDescription: "Pickaboo uses your location to fetch current weather."
         NSLocationUsageDescription: "Pickaboo uses your location to fetch current weather."

@@ -3,6 +3,7 @@ import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let presence = PresenceController()
+    let remindersService = RemindersService()
 
     private let mouseTracker = MouseTrackerService()
     private let windowMonitor = WindowMonitorService()
@@ -45,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         mouseTracker.start()
         windowMonitor.start()
+        remindersService.start()
         startTickLoop()
         scheduleAccessibilityRecheck()
     }
@@ -53,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tickTimer?.invalidate()
         mouseTracker.stop()
         windowMonitor.stop()
+        remindersService.stop()
     }
 
     private func startTickLoop() {

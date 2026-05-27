@@ -2,7 +2,7 @@
 
 A lightweight, Mac-native AI assistant that lives just outside your active window.
 
-> **Status:** Stage 3 — the avatar is now an autonomous character: it wanders, escapes when an active window covers it, retreats to the menu bar in full-screen, and walks toward the cursor when you click. Pixel-art sprite, Reminders, Weather, and AI features still pending.
+> **Status:** Stage 4 — the menu bar now lists upcoming Reminders (next 7 days) pulled live from macOS via EventKit. Character behaviour (wander / escape / dive / click-to-approach) from Stage 3 is unchanged. Weather, real pixel-art sprite, and AI features still pending.
 
 ## Requirements
 
@@ -57,10 +57,10 @@ Key decisions:
 |---|---|
 | 1 ✅ | Skeleton: menu bar + floating avatar following cursor |
 | 2 ✅ | Accessibility + `WindowMonitorService` + 4-cardinal avoidance + full-screen → menu bar retreat |
-| 3 ✅ | Autonomous BehaviorController (idle / wander / escape / approach); SpriteAnimator + SF Symbol placeholder character; click → face + approach cursor |
-| 4 | Real pixel-art sprite sheet (4-direction, multi-frame) replacing the placeholder |
-| 5 | macOS Reminders integration (EventKit) |
-| 6 | Weather via Open-Meteo (no API key, no paid Apple Developer account needed) |
+| 3 ✅ | Autonomous BehaviorController (idle / wander / escape / approach / dive); SpriteAnimator + SF Symbol placeholder character; click → face + approach cursor; full-screen dive to menu bar |
+| 4 ✅ | macOS Reminders integration: `RemindersService` (EventKit) + menu bar list of upcoming items |
+| 5 | Weather via Open-Meteo + current time in menu bar (no API key, no paid Apple Developer account needed) |
+| 6 | Real pixel-art sprite sheet (4-direction, multi-frame) replacing the placeholder |
 | 7 | AI assistant features |
 
 ## License

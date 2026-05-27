@@ -2,24 +2,24 @@ import SwiftUI
 
 struct MenuBarContent: View {
     @EnvironmentObject var presence: PresenceController
+    @EnvironmentObject var reminders: RemindersService
 
     private let recheckTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Pickaboo")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Pickaboo")
+                    .font(.headline)
+                Spacer()
+                Text(label(for: presence.mode))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Divider()
 
-            HStack {
-                Text("Mode")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(label(for: presence.mode))
-                    .fontWeight(.medium)
-            }
-            .font(.callout)
+            RemindersSection(service: reminders)
 
             if !presence.hasAccessibility {
                 Divider()
@@ -41,8 +41,11 @@ struct MenuBarContent: View {
             .keyboardShortcut("q")
         }
         .padding(14)
-        .frame(width: 300)
-        .onAppear { presence.refreshAccessibility() }
+        .frame(width: 320)
+        .onAppear {
+            presence.refreshAccessibility()
+            reminders.refresh()
+        }
         .onReceive(recheckTimer) { _ in presence.refreshAccessibility() }
     }
 
@@ -59,16 +62,8 @@ struct MenuBarContent: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                Button {
-                    AccessibilityPermission.openSystemSettings()
-                } label: {
-                    Text("Open Settings")
-                }
-                Button {
-                    presence.refreshAccessibility()
-                } label: {
-                    Text("Re-check")
-                }
+                Button { AccessibilityPermission.openSystemSettings() } label: { Text("Open Settings") }
+                Button { presence.refreshAccessibility() } label: { Text("Re-check") }
             }
         }
     }
@@ -76,7 +71,7 @@ struct MenuBarContent: View {
     private func label(for mode: PresenceMode) -> String {
         switch mode {
         case .floating: return "Floating"
-        case .menuBarOnly: return "Menu Bar"
+        case .menuBarOnly: return "Diving"
         case .hidden: return "Hidden"
         }
     }

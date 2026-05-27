@@ -8,6 +8,7 @@ struct PickabooApp: App {
         MenuBarExtra("Pickaboo", systemImage: "eye.circle.fill") {
             MenuBarContent()
                 .environmentObject(appDelegate.presence)
+                .environmentObject(appDelegate.remindersService)
         }
         .menuBarExtraStyle(.window)
     }
