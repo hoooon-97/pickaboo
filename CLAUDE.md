@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pickaboo — a Mac-native AI assistant. A floating avatar (`NSPanel`) tracks the cursor, retreats to the menu bar when the active app goes full-screen, and surfaces Reminders / weather / AI features.
 
-Currently at **Stage 5**: the menu bar popover surfaces time, weather (Open-Meteo via CoreLocation), and Reminders. The Stage 3 autonomous character is unchanged. Real pixel-art sprite is next, then AI. See `README.md` for the full roadmap.
+Currently at **Stage 7**: tapping the character opens a chat panel backed by an `AIService` protocol. Today it's wired to `StubAIService` (canned responses with simulated streaming); swap to a real LLM by injecting a different `AIService` in `AppDelegate`. `AssistantContext` (time + weather + upcoming reminders) is passed on every `send()` so the prompt has fresh context. See `README.md` for the full roadmap.
+
+**Replacing the AI backend:** Implement `AIService` (`func send(_ messages: [ChatMessage], context: AssistantContext) -> AsyncStream<String>`). Return chunks as the LLM streams; close the continuation when done. Nothing in `ChatViewModel` or `ChatView` needs to change.
 
 ## Build
 

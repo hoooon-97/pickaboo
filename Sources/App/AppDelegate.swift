@@ -6,12 +6,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let remindersService = RemindersService()
     let locationService = LocationService()
     lazy var weatherService = WeatherService(locationService: locationService)
+    let aiService: AIService = StubAIService()
 
     private let mouseTracker = MouseTrackerService()
     private let windowMonitor = WindowMonitorService()
     private let positionEngine = PositionEngine()
     private var avatar: FloatingAvatarController?
     private var behavior: BehaviorController?
+    private var chatController: ChatPanelController?
     private var tickTimer: Timer?
     private var lastTickAt: Date?
     private var isAnimatingPresence = false
@@ -20,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        let avatar = FloatingAvatarController()
+        let avatar = FloatingAvatarController { [weak self] in
+            self?.handleAvatarTap()
+        }
         let initialOrigin = initialAvatarOrigin(size: avatar.avatarSize)
         let behavior = BehaviorController(
             initialOrigin: initialOrigin,
@@ -31,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         avatar.show()
         self.avatar = avatar
         self.behavior = behavior
+
+        let viewModel = ChatViewModel(aiService: aiService) { [weak self] in
+            self?.makeAssistantContext() ?? .empty
+        }
+        chatController = ChatPanelController(viewModel: viewModel)
 
         mouseTracker.clicks
             .sink { [weak self] clickLocation in
@@ -60,6 +69,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowMonitor.stop()
         remindersService.stop()
         weatherService.stop()
+    }
+
+    private func handleAvatarTap() {
+        guard let avatar, let behavior else { return }
+        let origin = behavior.origin
+        let anchor = CGPoint(x: origin.x + avatar.avatarSize.width / 2,
+                             y: origin.y + avatar.avatarSize.height)
+        chatController?.toggle(near: anchor)
+    }
+
+    private func makeAssistantContext() -> AssistantContext {
+        AssistantContext(
+            now: Date(),
+            weather: weatherService.snapshot,
+            upcomingReminders: remindersService.reminders
+        )
     }
 
     private func startTickLoop() {

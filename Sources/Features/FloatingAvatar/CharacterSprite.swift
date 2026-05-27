@@ -3,6 +3,7 @@ import SwiftUI
 struct CharacterSprite: View {
     @ObservedObject var animator: SpriteAnimator
     let size: CGSize
+    let onTap: () -> Void
 
     var body: some View {
         Image(systemName: symbolName)
@@ -21,6 +22,8 @@ struct CharacterSprite: View {
             .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 3)
             .scaleEffect(x: animator.state.facing == .left ? -1 : 1, y: 1, anchor: .center)
             .offset(y: walkBob)
+            .contentShape(Rectangle())
+            .onTapGesture { onTap() }
             .animation(.easeInOut(duration: 0.1), value: animator.state.frame)
     }
 

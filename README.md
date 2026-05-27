@@ -2,7 +2,7 @@
 
 A lightweight, Mac-native AI assistant that lives just outside your active window.
 
-> **Status:** Stage 5 — the menu bar popover now shows the current time and local weather (Open-Meteo, no API key) alongside the Reminders list. Real pixel-art sprite and AI features still pending.
+> **Status:** Stage 7 — tap the character to open a chat panel. AI backend is currently a stub (canned responses) but the protocol is wired so a real LLM (Claude / OpenAI / Ollama) plugs in by swapping `StubAIService`. Real pixel-art sprite still pending.
 
 ## Requirements
 
@@ -61,7 +61,8 @@ Key decisions:
 | 4 ✅ | macOS Reminders integration: `RemindersService` (EventKit) + menu bar list of upcoming items |
 | 5 ✅ | Weather (Open-Meteo) + current time in menu bar; CoreLocation for coordinates, 30 min auto-refresh |
 | 6 | Real pixel-art sprite sheet (4-direction, multi-frame) replacing the placeholder |
-| 7 | AI assistant features |
+| 7 ✅ | AI chat panel triggered by tapping the character; `AIService` protocol with `StubAIService` for now; AssistantContext carries time + weather + reminders into the prompt |
+| 8 | Swap stub for real LLM backend (Claude / OpenAI / Ollama — TBD); character reactions to chat events |
 
 ## License
 

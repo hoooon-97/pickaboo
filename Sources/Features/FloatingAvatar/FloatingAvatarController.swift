@@ -6,10 +6,12 @@ final class FloatingAvatarController {
     let animator = SpriteAnimator()
     private let panel: FloatingPanel
 
-    init() {
+    init(onTap: @escaping () -> Void) {
         let initialRect = NSRect(origin: .zero, size: avatarSize)
         panel = FloatingPanel(contentRect: initialRect)
-        panel.contentView = NSHostingView(rootView: CharacterSprite(animator: animator, size: avatarSize))
+        panel.contentView = NSHostingView(
+            rootView: CharacterSprite(animator: animator, size: avatarSize, onTap: onTap)
+        )
     }
 
     func show() {
