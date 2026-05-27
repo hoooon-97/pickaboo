@@ -11,6 +11,7 @@ final class BehaviorController: ObservableObject {
     private enum State {
         case idle(until: Date)
         case walking(to: CGPoint, reason: WalkReason)
+        case diving(to: CGPoint, speed: CGFloat, onComplete: () -> Void)
     }
 
     @Published private(set) var origin: CGPoint
@@ -18,7 +19,7 @@ final class BehaviorController: ObservableObject {
     @Published private(set) var animation: SpriteAnimation = .idle
 
     var characterSize: CGSize
-    var walkSpeed: CGFloat = 90
+    var walkSpeed: CGFloat = 45
     var arrivalThreshold: CGFloat = 2
 
     private var state: State
@@ -31,7 +32,17 @@ final class BehaviorController: ObservableObject {
         self.state = .idle(until: Date().addingTimeInterval(0.5))
     }
 
+    var isDiving: Bool {
+        if case .diving = state { return true }
+        return false
+    }
+
     func tick(deltaTime: TimeInterval, obstacle: CGRect?) {
+        if case .diving(let target, let speed, let onComplete) = state {
+            processDive(target: target, speed: speed, onComplete: onComplete, deltaTime: deltaTime)
+            return
+        }
+
         let bounds = positionEngine.bounds(containing: CGPoint(x: origin.x + characterSize.width / 2,
                                                                 y: origin.y + characterSize.height / 2))
 
@@ -45,9 +56,9 @@ final class BehaviorController: ObservableObject {
 
         switch state {
         case .walking(let target, let reason):
-            advance(toward: target, deltaTime: deltaTime)
+            advance(toward: target, speed: walkSpeed, deltaTime: deltaTime)
             if distance(origin, target) <= arrivalThreshold {
-                arrive(reason: reason, bounds: bounds, obstacle: obstacle)
+                arrive(reason: reason)
             }
 
         case .idle(let until):
@@ -58,10 +69,14 @@ final class BehaviorController: ObservableObject {
                                                               avoiding: obstacle)
                 state = .walking(to: target, reason: .wander)
             }
+
+        case .diving:
+            break
         }
     }
 
     func reactToClick(at clickLocation: CGPoint, obstacle: CGRect?) {
+        if case .diving = state { return }
         let bounds = positionEngine.bounds(containing: clickLocation)
         let vector = CGVector(dx: clickLocation.x - (origin.x + characterSize.width / 2),
                               dy: clickLocation.y - (origin.y + characterSize.height / 2))
@@ -76,6 +91,42 @@ final class BehaviorController: ObservableObject {
         state = .walking(to: target, reason: .approach)
     }
 
+    func startDive(to target: CGPoint, duration: TimeInterval, onComplete: @escaping () -> Void) {
+        let dx = target.x - origin.x
+        let dy = target.y - origin.y
+        let dist = (dx * dx + dy * dy).squareRoot()
+        let speed = max(dist / max(duration, 0.05), 100)
+        state = .diving(to: target, speed: speed, onComplete: onComplete)
+        animation = .walking
+        facing = Facing.from(vector: CGVector(dx: dx, dy: dy), fallback: facing)
+    }
+
+    func respawn(at point: CGPoint) {
+        origin = point
+        animation = .idle
+        state = .idle(until: Date().addingTimeInterval(0.2))
+    }
+
+    private func processDive(target: CGPoint, speed: CGFloat, onComplete: () -> Void, deltaTime: TimeInterval) {
+        let dx = target.x - origin.x
+        let dy = target.y - origin.y
+        let dist = (dx * dx + dy * dy).squareRoot()
+
+        if dist <= 4 {
+            animation = .idle
+            state = .idle(until: Date().addingTimeInterval(0.5))
+            onComplete()
+            return
+        }
+
+        let step = min(dist, speed * CGFloat(deltaTime))
+        let ux = dx / dist
+        let uy = dy / dist
+        origin = CGPoint(x: origin.x + ux * step, y: origin.y + uy * step)
+        facing = Facing.from(vector: CGVector(dx: ux, dy: uy), fallback: facing)
+        animation = .walking
+    }
+
     private func shouldEscape(from obstacle: CGRect?) -> Bool {
         guard let obstacle else { return false }
         let rect = CGRect(origin: origin, size: characterSize)
@@ -84,13 +135,13 @@ final class BehaviorController: ObservableObject {
         return true
     }
 
-    private func advance(toward target: CGPoint, deltaTime: TimeInterval) {
+    private func advance(toward target: CGPoint, speed: CGFloat, deltaTime: TimeInterval) {
         let dx = target.x - origin.x
         let dy = target.y - origin.y
         let dist = (dx * dx + dy * dy).squareRoot()
         guard dist > 0 else { return }
 
-        let step = min(dist, walkSpeed * CGFloat(deltaTime))
+        let step = min(dist, speed * CGFloat(deltaTime))
         let unitX = dx / dist
         let unitY = dy / dist
         origin = CGPoint(x: origin.x + unitX * step, y: origin.y + unitY * step)
@@ -99,7 +150,7 @@ final class BehaviorController: ObservableObject {
         animation = .walking
     }
 
-    private func arrive(reason: WalkReason, bounds: CGRect, obstacle: CGRect?) {
+    private func arrive(reason: WalkReason) {
         animation = .idle
         let idleDuration: TimeInterval = switch reason {
         case .wander: .random(in: 1.2...3.0)

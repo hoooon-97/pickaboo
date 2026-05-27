@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var behavior: BehaviorController?
     private var tickTimer: Timer?
     private var lastTickAt: Date?
+    private var isAnimatingPresence = false
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -63,7 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func tick() {
         guard let behavior, let avatar else { return }
-        guard presence.mode == .floating else {
+        let allowTick = presence.mode == .floating || behavior.isDiving
+        guard allowTick else {
             lastTickAt = Date()
             return
         }
@@ -72,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let dt = now.timeIntervalSince(lastTickAt ?? now)
         lastTickAt = now
 
-        let obstacle = windowMonitor.activeWindow.value?.frame
+        let obstacle = behavior.isDiving ? nil : windowMonitor.activeWindow.value?.frame
         behavior.tick(deltaTime: dt, obstacle: obstacle)
         avatar.move(to: behavior.origin)
         avatar.animator.update(facing: behavior.facing,
@@ -81,17 +83,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyPresence(for windowInfo: ActiveWindowInfo?) {
+        guard !isAnimatingPresence else { return }
+
         let shouldRetreat = windowInfo?.isFullScreen ?? false
         let newMode: PresenceMode = shouldRetreat ? .menuBarOnly : .floating
         guard newMode != presence.mode else { return }
-        presence.mode = newMode
+
         switch newMode {
+        case .menuBarOnly:
+            let target = menuBarPosition()
+            isAnimatingPresence = true
+            behavior?.startDive(to: target, duration: 0.4) { [weak self] in
+                guard let self else { return }
+                self.avatar?.hide()
+                self.presence.mode = .menuBarOnly
+                self.isAnimatingPresence = false
+            }
+
         case .floating:
+            let spawn = menuBarPosition()
+            avatar?.move(to: spawn)
+            behavior?.respawn(at: spawn)
             avatar?.show()
+            presence.mode = .floating
             lastTickAt = Date()
-        case .menuBarOnly, .hidden:
+
+        case .hidden:
             avatar?.hide()
+            presence.mode = .hidden
         }
+    }
+
+    private func menuBarPosition() -> CGPoint {
+        let size = avatar?.avatarSize ?? CGSize(width: 80, height: 80)
+        guard let primary = NSScreen.screens.first else { return .zero }
+        let frame = primary.frame
+        return CGPoint(
+            x: frame.maxX - size.width - 100,
+            y: frame.maxY - size.height - 8
+        )
     }
 
     private func initialAvatarOrigin(size: CGSize) -> CGPoint {
