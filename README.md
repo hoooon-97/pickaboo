@@ -2,7 +2,7 @@
 
 A lightweight, Mac-native AI assistant that lives just outside your active window.
 
-> **Status:** Stage 2 — the avatar now avoids the active window and retreats into the menu bar when an app goes full-screen. Autonomous walking, sprite art, click reactions, Reminders, Weather, and AI features are not implemented yet.
+> **Status:** Stage 3 — the avatar is now an autonomous character: it wanders, escapes when an active window covers it, retreats to the menu bar in full-screen, and walks toward the cursor when you click. Pixel-art sprite, Reminders, Weather, and AI features still pending.
 
 ## Requirements
 
@@ -28,17 +28,19 @@ On first run, macOS will prompt to grant Pickaboo **Accessibility** permission. 
 
 ```
 Sources/
-├── App/                              # @main + AppDelegate (owns services & panel)
+├── App/                              # @main + AppDelegate (owns services, panel, tick loop)
 ├── Core/
 │   └── Permissions/                  # AccessibilityPermission helper
 ├── Domain/
 │   ├── PresenceMode.swift            # .floating / .menuBarOnly / .hidden + hasAccessibility
-│   └── PositionEngine.swift          # mouse + active window → target frame (4-cardinal avoidance)
+│   ├── PositionEngine.swift          # nearestValidOrigin + randomValidOrigin (4-cardinal avoidance)
+│   ├── CharacterState.swift          # Facing / SpriteAnimation / SpriteState
+│   └── BehaviorController.swift      # idle / walking state machine, click reactions
 ├── Services/
-│   ├── MouseTrackerService.swift     # NSEvent global monitor → Combine subject
-│   └── WindowMonitorService.swift    # AXUIElement focused-window + full-screen state, cached
+│   ├── MouseTrackerService.swift     # global left-click monitor
+│   └── WindowMonitorService.swift    # AX focused window + full-screen, cached
 └── Features/
-    ├── FloatingAvatar/               # NSPanel (.nonactivatingPanel) + SwiftUI view
+    ├── FloatingAvatar/               # NSPanel + CharacterSprite + SpriteAnimator
     └── MenuBar/                      # MenuBarExtra contents + permission banner
 ```
 
@@ -55,10 +57,11 @@ Key decisions:
 |---|---|
 | 1 ✅ | Skeleton: menu bar + floating avatar following cursor |
 | 2 ✅ | Accessibility + `WindowMonitorService` + 4-cardinal avoidance + full-screen → menu bar retreat |
-| 3 | Autonomous walking character: BehaviorController state machine, sprite system (placeholder shapes → real pixel art later), click → face cursor |
-| 4 | macOS Reminders integration (EventKit) |
-| 5 | Weather via Open-Meteo (no API key, no paid Apple Developer account needed) |
-| 6 | AI assistant features |
+| 3 ✅ | Autonomous BehaviorController (idle / wander / escape / approach); SpriteAnimator + SF Symbol placeholder character; click → face + approach cursor |
+| 4 | Real pixel-art sprite sheet (4-direction, multi-frame) replacing the placeholder |
+| 5 | macOS Reminders integration (EventKit) |
+| 6 | Weather via Open-Meteo (no API key, no paid Apple Developer account needed) |
+| 7 | AI assistant features |
 
 ## License
 

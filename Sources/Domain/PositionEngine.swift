@@ -1,54 +1,73 @@
 import AppKit
 
 struct PositionEngine {
-    var cursorOffset: CGFloat = 24
     var obstacleGap: CGFloat = 8
 
-    func targetFrame(forMouse mouseLocation: CGPoint,
-                     avatarSize: CGSize,
-                     avoiding obstacle: CGRect? = nil) -> CGRect {
-        let bounds = screen(containing: mouseLocation).visibleFrame
-        let preferred = preferredFrame(near: mouseLocation, size: avatarSize)
+    func bounds(containing point: CGPoint) -> CGRect {
+        screen(containing: point).visibleFrame
+    }
 
-        guard let obstacle, preferred.intersects(obstacle) else {
-            return clamp(preferred, in: bounds)
+    /// Returns the nearest valid origin (bottom-left) that fits within bounds
+    /// and does not intersect the obstacle, starting from `desiredOrigin`.
+    func nearestValidOrigin(to desiredOrigin: CGPoint,
+                            size: CGSize,
+                            bounds: CGRect,
+                            avoiding obstacle: CGRect?) -> CGPoint {
+        let proposed = CGRect(origin: desiredOrigin, size: size)
+        let clamped = clamp(proposed, in: bounds)
+
+        guard let obstacle, clamped.intersects(obstacle) else {
+            return clamped.origin
         }
 
         let candidates = sideCandidates(for: obstacle,
-                                        mouse: mouseLocation,
-                                        size: avatarSize,
+                                        anchor: CGPoint(x: clamped.midX, y: clamped.midY),
+                                        size: size,
                                         bounds: bounds)
-        let valid = candidates.filter { !$0.intersects(obstacle) && bounds.contains($0) }
+        let best = candidates
+            .filter { !$0.intersects(obstacle) && bounds.contains($0) }
+            .min { distance($0.origin, desiredOrigin) < distance($1.origin, desiredOrigin) }
 
-        let best = valid.min { distance($0.center, mouseLocation) < distance($1.center, mouseLocation) }
-        return best ?? clamp(preferred, in: bounds)
+        return (best ?? clamped).origin
     }
 
-    private func preferredFrame(near point: CGPoint, size: CGSize) -> CGRect {
-        CGRect(
-            x: point.x + cursorOffset,
-            y: point.y - cursorOffset - size.height,
-            width: size.width,
-            height: size.height
-        )
+    /// Picks a random origin within bounds that doesn't intersect the obstacle.
+    /// Falls back to a corner farthest from the obstacle if no random point fits.
+    func randomValidOrigin(size: CGSize,
+                           bounds: CGRect,
+                           avoiding obstacle: CGRect?) -> CGPoint {
+        let xRange = bounds.minX...max(bounds.minX, bounds.maxX - size.width)
+        let yRange = bounds.minY...max(bounds.minY, bounds.maxY - size.height)
+
+        for _ in 0..<16 {
+            let candidate = CGPoint(x: .random(in: xRange), y: .random(in: yRange))
+            let rect = CGRect(origin: candidate, size: size)
+            if let obstacle, rect.intersects(obstacle) { continue }
+            return candidate
+        }
+
+        return nearestValidOrigin(to: CGPoint(x: bounds.minX, y: bounds.minY),
+                                  size: size,
+                                  bounds: bounds,
+                                  avoiding: obstacle)
     }
 
     private func sideCandidates(for obstacle: CGRect,
-                                mouse: CGPoint,
+                                anchor: CGPoint,
                                 size: CGSize,
                                 bounds: CGRect) -> [CGRect] {
-        let alignedY = clampScalar(mouse.y - size.height / 2,
+        let alignedY = clampScalar(anchor.y - size.height / 2,
                                    min: bounds.minY,
                                    max: bounds.maxY - size.height)
-        let alignedX = clampScalar(mouse.x - size.width / 2,
+        let alignedX = clampScalar(anchor.x - size.width / 2,
                                    min: bounds.minX,
                                    max: bounds.maxX - size.width)
 
         return [
-            CGRect(x: obstacle.maxX + obstacleGap, y: alignedY, width: size.width, height: size.height),   // right
-            CGRect(x: obstacle.minX - obstacleGap - size.width, y: alignedY, width: size.width, height: size.height), // left
-            CGRect(x: alignedX, y: obstacle.maxY + obstacleGap, width: size.width, height: size.height),   // above
-            CGRect(x: alignedX, y: obstacle.minY - obstacleGap - size.height, width: size.width, height: size.height) // below
+            CGRect(x: obstacle.maxX + obstacleGap, y: alignedY, width: size.width, height: size.height),
+            CGRect(x: obstacle.minX - obstacleGap - size.width, y: alignedY, width: size.width, height: size.height),
+            CGRect(x: alignedX, y: obstacle.maxY + obstacleGap, width: size.width, height: size.height),
+            CGRect(x: alignedX, y: obstacle.minY - obstacleGap - size.height, width: size.width, height: size.height)
         ]
     }
 
@@ -74,8 +93,4 @@ struct PositionEngine {
         let dy = a.y - b.y
         return (dx * dx + dy * dy).squareRoot()
     }
-}
-
-private extension CGRect {
-    var center: CGPoint { CGPoint(x: midX, y: midY) }
 }

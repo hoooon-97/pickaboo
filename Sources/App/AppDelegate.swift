@@ -8,42 +8,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowMonitor = WindowMonitorService()
     private let positionEngine = PositionEngine()
     private var avatar: FloatingAvatarController?
+    private var behavior: BehaviorController?
+    private var tickTimer: Timer?
+    private var lastTickAt: Date?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
         let avatar = FloatingAvatarController()
+        let initialOrigin = initialAvatarOrigin(size: avatar.avatarSize)
+        let behavior = BehaviorController(
+            initialOrigin: initialOrigin,
+            characterSize: avatar.avatarSize,
+            positionEngine: positionEngine
+        )
+        avatar.move(to: initialOrigin)
         avatar.show()
         self.avatar = avatar
+        self.behavior = behavior
 
-        let mouse = mouseTracker.mouseLocation
-        let window = windowMonitor.activeWindow
-
-        Publishers.CombineLatest(mouse, window)
-            .throttle(for: .milliseconds(33), scheduler: DispatchQueue.main, latest: true)
-            .sink { [weak self, positionEngine] mouseLocation, windowInfo in
+        mouseTracker.clicks
+            .sink { [weak self] clickLocation in
                 guard let self else { return }
-                self.applyPresence(for: windowInfo)
-                guard self.presence.mode == .floating else { return }
-                let frame = positionEngine.targetFrame(
-                    forMouse: mouseLocation,
-                    avatarSize: avatar.avatarSize,
-                    avoiding: windowInfo?.frame
-                )
-                avatar.move(to: frame)
+                let obstacle = self.windowMonitor.activeWindow.value?.frame
+                self.behavior?.reactToClick(at: clickLocation, obstacle: obstacle)
+            }
+            .store(in: &cancellables)
+
+        windowMonitor.activeWindow
+            .sink { [weak self] info in
+                self?.applyPresence(for: info)
             }
             .store(in: &cancellables)
 
         mouseTracker.start()
         windowMonitor.start()
-
+        startTickLoop()
         scheduleAccessibilityRecheck()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        tickTimer?.invalidate()
         mouseTracker.stop()
         windowMonitor.stop()
+    }
+
+    private func startTickLoop() {
+        lastTickAt = Date()
+        tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    private func tick() {
+        guard let behavior, let avatar else { return }
+        guard presence.mode == .floating else {
+            lastTickAt = Date()
+            return
+        }
+
+        let now = Date()
+        let dt = now.timeIntervalSince(lastTickAt ?? now)
+        lastTickAt = now
+
+        let obstacle = windowMonitor.activeWindow.value?.frame
+        behavior.tick(deltaTime: dt, obstacle: obstacle)
+        avatar.move(to: behavior.origin)
+        avatar.animator.update(facing: behavior.facing,
+                               animation: behavior.animation,
+                               deltaTime: dt)
     }
 
     private func applyPresence(for windowInfo: ActiveWindowInfo?) {
@@ -54,9 +88,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch newMode {
         case .floating:
             avatar?.show()
+            lastTickAt = Date()
         case .menuBarOnly, .hidden:
             avatar?.hide()
         }
+    }
+
+    private func initialAvatarOrigin(size: CGSize) -> CGPoint {
+        guard let screen = NSScreen.main else { return .zero }
+        let visible = screen.visibleFrame
+        return CGPoint(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2)
     }
 
     private func scheduleAccessibilityRecheck() {

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pickaboo — a Mac-native AI assistant. A floating avatar (`NSPanel`) tracks the cursor, retreats to the menu bar when the active app goes full-screen, and surfaces Reminders / weather / AI features.
 
-Currently at **Stage 2**: the avatar avoids the active window and retreats into the menu bar when an app is full-screen. Autonomous walking + sprite art lands in Stage 3. See `README.md` for the full roadmap.
+Currently at **Stage 3**: the avatar is an autonomous character driven by a 60 Hz tick. It wanders, escapes covering windows, retreats in full-screen, and walks toward the cursor on click. Real pixel art replaces the placeholder figure in Stage 4. See `README.md` for the full roadmap.
 
 ## Build
 
@@ -25,23 +25,38 @@ The app is an accessory (`LSUIElement = true`, `NSApp.setActivationPolicy(.acces
 1. **MenuBarExtra** (SwiftUI) — declared in `PickabooApp.swift`. Always present.
 2. **FloatingPanel** (`NSPanel` subclass) — created imperatively in `AppDelegate.applicationDidFinishLaunching`. SwiftUI content via `NSHostingView`. Uses `.nonactivatingPanel` style and `canBecomeKey = false` so it **never steals focus**.
 
-Data flow (Stage 2):
+Data flow (Stage 3):
 
 ```
-NSEvent global monitor  →  MouseTrackerService ─┐
-                                                 ├─ CombineLatest
-AX focused-window     ──→  WindowMonitorService ┘
-                                                 ↓ .throttle(33ms, latest)
-                                AppDelegate.applyPresence (fullscreen → hide)
-                                                 ↓ (floating only)
-                                PositionEngine.targetFrame(mouse, size, avoiding: windowFrame)
+60 Hz Timer (AppDelegate.tick) ──────────────────────────────────────┐
+                                                                      │
+windowMonitor.activeWindow.value  ──→ obstacle ─┐                    │
+                                                 ↓                    ↓
+                              BehaviorController.tick(dt, obstacle)
+                                  ├─ shouldEscape? → walking(.escape)
+                                  ├─ idle expired? → walking(.wander, randomValidOrigin)
+                                  └─ walking → advance(dt), arrive → idle
                                                  ↓
-                                FloatingAvatarController.move → NSPanel.setFrame
+                                  origin / facing / animation
+                                  ├──→ panel.setFrame (AppKit, imperative)
+                                  └──→ SpriteAnimator.update → SwiftUI re-render
+
+NSEvent leftMouseDown ──→ MouseTrackerService.clicks ──→ BehaviorController.reactToClick
+                                                              ↓
+                                              face + walking(.approach, nearestValidOrigin)
+
+NSWorkspace.activeWindow change ──→ applyPresence
+                                       ├─ fullscreen → mode=.menuBarOnly, panel.hide
+                                       └─ otherwise → mode=.floating, panel.show
 ```
 
-WindowMonitorService refreshes on NSWorkspace notifications (`didActivate*`, `activeSpaceDidChange`) + a 500 ms safety poll. `AXUIElementCopyAttributeValue` is synchronous and 1–10 ms per call, so it MUST stay off the mouse path — only WindowMonitorService is allowed to invoke it. The active window's bundle id is compared against `Bundle.main.bundleIdentifier` so Pickaboo's own panel never becomes its own obstacle.
+**Single source of truth for position is `BehaviorController.origin`.** Don't mutate `panel.frame` from anywhere else — the tick loop is authoritative. Click and window events only influence behavior state, never the panel directly.
 
-Coordinate systems: AX returns top-left-origin rects relative to the primary screen's top-left. `convertToBottomLeft` flips them to NSScreen/NSWindow convention (bottom-left origin, primary screen). All downstream code assumes NS coordinates.
+WindowMonitorService refreshes on NSWorkspace notifications (`didActivate*`, `activeSpaceDidChange`) + a 500 ms safety poll. `AXUIElementCopyAttributeValue` is synchronous and 1–10 ms per call, so it MUST stay off the tick path — only WindowMonitorService is allowed to invoke it. The active window's bundle id is compared against `Bundle.main.bundleIdentifier` so Pickaboo's own panel never becomes its own obstacle.
+
+Coordinate systems: AX returns top-left-origin rects relative to the primary screen's top-left. `convertToBottomLeft` flips them to NSScreen/NSWindow convention (bottom-left origin, primary screen). All downstream code assumes NS coordinates. `BehaviorController.origin` is the panel's bottom-left in NS coordinates.
+
+**Replacing the placeholder sprite:** `CharacterSprite.swift` is the only file that needs to change. It reads `animator.state` (facing + animation + frame) and renders. The behavior layer never touches view code, so a pixel-art sprite sheet plugs in by swapping the `Image(systemName:)` call for an asset lookup keyed on `(facing, animation, frame)`.
 
 **Why these choices:**
 - SwiftUI `Window` cannot become an `NSPanel`, so the floating avatar is built in AppKit and hosts a SwiftUI view. Don't try to migrate it to a SwiftUI Scene.
