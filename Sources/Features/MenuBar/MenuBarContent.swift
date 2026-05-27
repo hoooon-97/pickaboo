@@ -19,6 +19,11 @@ struct MenuBarContent: View {
             }
             .font(.callout)
 
+            if !presence.hasAccessibility {
+                Divider()
+                permissionBanner
+            }
+
             Divider()
 
             Button {
@@ -34,7 +39,26 @@ struct MenuBarContent: View {
             .keyboardShortcut("q")
         }
         .padding(14)
-        .frame(width: 240)
+        .frame(width: 260)
+        .onAppear { presence.refreshAccessibility() }
+    }
+
+    private var permissionBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Accessibility permission required", systemImage: "exclamationmark.triangle.fill")
+                .font(.callout)
+                .foregroundStyle(.orange)
+            Text("Pickaboo needs Accessibility access to detect active windows and stay out of your way.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button {
+                AccessibilityPermission.openSystemSettings()
+            } label: {
+                Text("Open System Settings…")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func label(for mode: PresenceMode) -> String {

@@ -2,7 +2,7 @@
 
 A lightweight, Mac-native AI assistant that lives just outside your active window.
 
-> **Status:** Stage 1 — skeleton only. A floating avatar follows the cursor and a menu bar item appears. Window-avoidance, full-screen retreat, Reminders, Weather, and AI features are not implemented yet.
+> **Status:** Stage 2 — the avatar now avoids the active window and retreats into the menu bar when an app goes full-screen. Autonomous walking, sprite art, click reactions, Reminders, Weather, and AI features are not implemented yet.
 
 ## Requirements
 
@@ -22,21 +22,24 @@ open Pickaboo.xcodeproj
 xcodebuild -scheme Pickaboo -configuration Debug build
 ```
 
-On first run, macOS will prompt to grant Pickaboo **Accessibility** permission (required for active-window detection in later stages). Stage 1 itself only uses a global mouse monitor, but the permission prompt scaffolding is included.
+On first run, macOS will prompt to grant Pickaboo **Accessibility** permission. Until granted, the avatar still follows the cursor but cannot detect active windows or full-screen state. The menu bar item shows a "Grant Accessibility…" shortcut if permission is missing.
 
 ## Architecture
 
 ```
 Sources/
-├── App/                         # @main + AppDelegate (owns services & panel)
+├── App/                              # @main + AppDelegate (owns services & panel)
+├── Core/
+│   └── Permissions/                  # AccessibilityPermission helper
 ├── Domain/
-│   ├── PresenceMode.swift       # .floating / .menuBarOnly / .hidden state
-│   └── PositionEngine.swift     # mouse → target frame (avoidance comes later)
+│   ├── PresenceMode.swift            # .floating / .menuBarOnly / .hidden + hasAccessibility
+│   └── PositionEngine.swift          # mouse + active window → target frame (4-cardinal avoidance)
 ├── Services/
-│   └── MouseTrackerService.swift  # NSEvent global monitor → Combine subject
+│   ├── MouseTrackerService.swift     # NSEvent global monitor → Combine subject
+│   └── WindowMonitorService.swift    # AXUIElement focused-window + full-screen state, cached
 └── Features/
-    ├── FloatingAvatar/          # NSPanel (.nonactivatingPanel) + SwiftUI view
-    └── MenuBar/                 # MenuBarExtra contents
+    ├── FloatingAvatar/               # NSPanel (.nonactivatingPanel) + SwiftUI view
+    └── MenuBar/                      # MenuBarExtra contents + permission banner
 ```
 
 Key decisions:
@@ -51,8 +54,8 @@ Key decisions:
 | Stage | Scope |
 |---|---|
 | 1 ✅ | Skeleton: menu bar + floating avatar following cursor |
-| 2 | Accessibility permission + `WindowMonitorService` (AXUIElement) + collision avoidance |
-| 3 | Full-screen detection → retreat into menu bar |
+| 2 ✅ | Accessibility + `WindowMonitorService` + 4-cardinal avoidance + full-screen → menu bar retreat |
+| 3 | Autonomous walking character: BehaviorController state machine, sprite system (placeholder shapes → real pixel art later), click → face cursor |
 | 4 | macOS Reminders integration (EventKit) |
 | 5 | Weather via Open-Meteo (no API key, no paid Apple Developer account needed) |
 | 6 | AI assistant features |

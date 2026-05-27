@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pickaboo — a Mac-native AI assistant. A floating avatar (`NSPanel`) tracks the cursor, retreats to the menu bar when the active app goes full-screen, and surfaces Reminders / weather / AI features.
 
-Currently at **Stage 1**: skeleton only (menu bar item + cursor-following avatar). See `README.md` for the full roadmap.
+Currently at **Stage 2**: the avatar avoids the active window and retreats into the menu bar when an app is full-screen. Autonomous walking + sprite art lands in Stage 3. See `README.md` for the full roadmap.
 
 ## Build
 
@@ -25,17 +25,23 @@ The app is an accessory (`LSUIElement = true`, `NSApp.setActivationPolicy(.acces
 1. **MenuBarExtra** (SwiftUI) — declared in `PickabooApp.swift`. Always present.
 2. **FloatingPanel** (`NSPanel` subclass) — created imperatively in `AppDelegate.applicationDidFinishLaunching`. SwiftUI content via `NSHostingView`. Uses `.nonactivatingPanel` style and `canBecomeKey = false` so it **never steals focus**.
 
-Data flow (Stage 1):
+Data flow (Stage 2):
 
 ```
-NSEvent global monitor  →  MouseTrackerService (Combine PassthroughSubject)
-                              ↓ .throttle(33ms, latest)
-                          PositionEngine.targetFrame(mouse, avatarSize)
-                              ↓
-                          FloatingAvatarController.move(to:)
-                              ↓
-                          NSPanel.setFrame
+NSEvent global monitor  →  MouseTrackerService ─┐
+                                                 ├─ CombineLatest
+AX focused-window     ──→  WindowMonitorService ┘
+                                                 ↓ .throttle(33ms, latest)
+                                AppDelegate.applyPresence (fullscreen → hide)
+                                                 ↓ (floating only)
+                                PositionEngine.targetFrame(mouse, size, avoiding: windowFrame)
+                                                 ↓
+                                FloatingAvatarController.move → NSPanel.setFrame
 ```
+
+WindowMonitorService refreshes on NSWorkspace notifications (`didActivate*`, `activeSpaceDidChange`) + a 500 ms safety poll. `AXUIElementCopyAttributeValue` is synchronous and 1–10 ms per call, so it MUST stay off the mouse path — only WindowMonitorService is allowed to invoke it. The active window's bundle id is compared against `Bundle.main.bundleIdentifier` so Pickaboo's own panel never becomes its own obstacle.
+
+Coordinate systems: AX returns top-left-origin rects relative to the primary screen's top-left. `convertToBottomLeft` flips them to NSScreen/NSWindow convention (bottom-left origin, primary screen). All downstream code assumes NS coordinates.
 
 **Why these choices:**
 - SwiftUI `Window` cannot become an `NSPanel`, so the floating avatar is built in AppKit and hosts a SwiftUI view. Don't try to migrate it to a SwiftUI Scene.
